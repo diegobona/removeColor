@@ -1,0 +1,477 @@
+---
+import { cleanupPresets, getDefaultCleanupPreset } from '../lib/controlPresets';
+
+const defaultPreset = getDefaultCleanupPreset();
+---
+
+<section class="tool" aria-label="Remove color from image tool">
+  <div class="tool__upload" id="dropZone">
+    <div>
+      <p class="tool__label">Upload image</p>
+      <p class="tool__hint">PNG, JPG, JPEG, or WebP. Processing stays in your browser.</p>
+    </div>
+    <div class="tool__actions">
+      <label class="button button--primary">
+        Choose image
+        <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" />
+      </label>
+      <button class="button button--ghost" id="sampleButton" type="button">Try sample</button>
+    </div>
+  </div>
+
+  <div class="tool__workspace" id="workspace" data-active="false">
+    <div class="preview-stage preview-stage--checker" id="previewStage">
+      <canvas id="previewCanvas" width="960" height="540"></canvas>
+      <div class="preview-empty" id="previewEmpty">
+        <strong>Preview</strong>
+        <span>Your transparent result appears here.</span>
+      </div>
+    </div>
+
+    <div class="controls" aria-label="Color removal controls">
+      <div class="control-row control-row--split">
+        <label>
+          <span>Target color</span>
+          <input id="targetHex" type="text" value="#ffffff" inputmode="text" autocomplete="off" />
+        </label>
+        <label>
+          <span>Picker</span>
+          <input id="targetColor" type="color" value="#ffffff" />
+        </label>
+      </div>
+
+      <div class="control-group">
+        <span>Cleanup preset</span>
+        <div class="preset-grid" role="group" aria-label="Cleanup preset">
+          {
+            cleanupPresets.map((preset) => (
+              <button
+                type="button"
+                data-preset={preset.id}
+                data-tolerance={preset.values.tolerance}
+                data-softness={preset.values.edgeSoftness}
+                data-halo={preset.values.haloCleanup}
+                aria-pressed={preset.id === defaultPreset.id}
+              >
+                <strong>{preset.label}</strong>
+                <small>{preset.helper}</small>
+              </button>
+            ))
+          }
+        </div>
+      </div>
+
+      <details class="advanced-controls">
+        <summary>Fine-tune result</summary>
+        <label class="range-row">
+          <span>
+            Color range
+            <small>Higher removes more similar shades.</small>
+          </span>
+          <input id="toleranceInput" type="range" min="0" max="100" value={defaultPreset.values.tolerance} />
+          <output id="toleranceOutput">{defaultPreset.values.tolerance}</output>
+        </label>
+
+        <label class="range-row">
+          <span>
+            Smooth edge
+            <small>Higher softens jagged pixels.</small>
+          </span>
+          <input id="softnessInput" type="range" min="0" max="100" value={defaultPreset.values.edgeSoftness} />
+          <output id="softnessOutput">{defaultPreset.values.edgeSoftness}</output>
+        </label>
+
+        <label class="range-row">
+          <span>
+            Remove edge tint
+            <small>Higher reduces white or color outlines.</small>
+          </span>
+          <input id="haloInput" type="range" min="0" max="100" value={defaultPreset.values.haloCleanup} />
+          <output id="haloOutput">{defaultPreset.values.haloCleanup}</output>
+        </label>
+      </details>
+
+      <div class="control-group">
+        <span>Preview background</span>
+        <div class="segmented" role="group" aria-label="Preview background">
+          <button type="button" data-bg="checker" aria-pressed="true">Grid</button>
+          <button type="button" data-bg="white" aria-pressed="false">White</button>
+          <button type="button" data-bg="black" aria-pressed="false">Black</button>
+          <label>
+            <input id="customBg" type="color" value="#33a6ff" />
+            Custom
+          </label>
+        </div>
+      </div>
+
+      <div class="tool__footer">
+        <p id="statusText" role="status">Choose an image to start.</p>
+        <div class="tool__footer-actions">
+          <button class="button button--ghost" id="resetButton" type="button" disabled>Reset</button>
+          <button class="button button--primary" id="downloadButton" type="button" disabled>Download PNG</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { parseHexColor, removeColorFromPixels, rgbToHex } from '../lib/colorRemoval';
+
+  const fileInput = document.querySelector<HTMLInputElement>('#fileInput');
+  const sampleButton = document.querySelector<HTMLButtonElement>('#sampleButton');
+  const dropZone = document.querySelector<HTMLElement>('#dropZone');
+  const workspace = document.querySelector<HTMLElement>('#workspace');
+  const previewStage = document.querySelector<HTMLElement>('#previewStage');
+  const previewCanvas = document.querySelector<HTMLCanvasElement>('#previewCanvas');
+  const previewEmpty = document.querySelector<HTMLElement>('#previewEmpty');
+  const targetHex = document.querySelector<HTMLInputElement>('#targetHex');
+  const targetColor = document.querySelector<HTMLInputElement>('#targetColor');
+  const toleranceInput = document.querySelector<HTMLInputElement>('#toleranceInput');
+  const softnessInput = document.querySelector<HTMLInputElement>('#softnessInput');
+  const haloInput = document.querySelector<HTMLInputElement>('#haloInput');
+  const toleranceOutput = document.querySelector<HTMLOutputElement>('#toleranceOutput');
+  const softnessOutput = document.querySelector<HTMLOutputElement>('#softnessOutput');
+  const haloOutput = document.querySelector<HTMLOutputElement>('#haloOutput');
+  const presetButtons = document.querySelectorAll<HTMLButtonElement>('[data-preset]');
+  const customBg = document.querySelector<HTMLInputElement>('#customBg');
+  const statusText = document.querySelector<HTMLElement>('#statusText');
+  const resetButton = document.querySelector<HTMLButtonElement>('#resetButton');
+  const downloadButton = document.querySelector<HTMLButtonElement>('#downloadButton');
+  const context = previewCanvas?.getContext('2d', { willReadFrequently: true });
+
+  let originalImageData: ImageData | null = null;
+  let processedImageData: ImageData | null = null;
+  let sourceName = 'removecolor-image';
+  let pendingFrame = 0;
+  let pendingTimer = 0;
+
+  function setStatus(message: string): void {
+    if (statusText) {
+      statusText.textContent = message;
+    }
+  }
+
+  function setActiveState(active: boolean): void {
+    workspace?.setAttribute('data-active', String(active));
+    if (previewEmpty) {
+      previewEmpty.hidden = active;
+    }
+    if (resetButton) {
+      resetButton.disabled = !active;
+    }
+    if (downloadButton) {
+      downloadButton.disabled = !active;
+    }
+  }
+
+  function syncRangeOutputs(): void {
+    if (toleranceOutput && toleranceInput) {
+      toleranceOutput.value = toleranceInput.value;
+    }
+    if (softnessOutput && softnessInput) {
+      softnessOutput.value = softnessInput.value;
+    }
+    if (haloOutput && haloInput) {
+      haloOutput.value = haloInput.value;
+    }
+  }
+
+  function scheduleProcess(): void {
+    syncRangeOutputs();
+
+    if (!originalImageData || !context || !previewCanvas) {
+      return;
+    }
+
+    window.cancelAnimationFrame(pendingFrame);
+    window.clearTimeout(pendingTimer);
+    pendingFrame = window.requestAnimationFrame(() => {
+      pendingFrame = 0;
+      window.clearTimeout(pendingTimer);
+      processImage();
+    });
+    pendingTimer = window.setTimeout(() => {
+      if (pendingFrame !== 0) {
+        window.cancelAnimationFrame(pendingFrame);
+        pendingFrame = 0;
+        processImage();
+      }
+    }, 80);
+  }
+
+  function applyPreset(button: HTMLButtonElement): void {
+    if (!toleranceInput || !softnessInput || !haloInput) {
+      return;
+    }
+
+    toleranceInput.value = button.dataset.tolerance ?? toleranceInput.value;
+    softnessInput.value = button.dataset.softness ?? softnessInput.value;
+    haloInput.value = button.dataset.halo ?? haloInput.value;
+
+    presetButtons.forEach((item) => {
+      item.setAttribute('aria-pressed', String(item === button));
+    });
+    scheduleProcess();
+  }
+
+  function markPresetAsCustom(): void {
+    presetButtons.forEach((item) => {
+      item.setAttribute('aria-pressed', 'false');
+    });
+  }
+
+  function processImage(): void {
+    if (!originalImageData || !context || !targetHex || !toleranceInput || !softnessInput || !haloInput) {
+      return;
+    }
+
+    try {
+      const nextData = removeColorFromPixels(
+        originalImageData.data,
+        originalImageData.width,
+        originalImageData.height,
+        {
+          target: parseHexColor(targetHex.value),
+          tolerance: Number(toleranceInput.value),
+          edgeSoftness: Number(softnessInput.value),
+          haloCleanup: Number(haloInput.value)
+        }
+      );
+      processedImageData = context.createImageData(originalImageData.width, originalImageData.height);
+      processedImageData.data.set(nextData);
+      context.putImageData(processedImageData, 0, 0);
+      setStatus('Preview updated. Click the image to sample a different color.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Unable to process this image.');
+    }
+  }
+
+  async function loadImageFromSource(source: string, name: string): Promise<void> {
+    if (!context || !previewCanvas) {
+      setStatus('Canvas is not available in this browser.');
+      return;
+    }
+
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = source;
+
+    try {
+      await image.decode();
+    } catch {
+      setStatus('Unable to read this image file.');
+      return;
+    }
+
+    sourceName = name.replace(/\.[^.]+$/, '') || 'removecolor-image';
+    previewCanvas.width = image.naturalWidth;
+    previewCanvas.height = image.naturalHeight;
+    context.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    context.drawImage(image, 0, 0);
+    originalImageData = context.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
+    processedImageData = originalImageData;
+    setActiveState(true);
+    scheduleProcess();
+  }
+
+  function loadFile(file: File): void {
+    if (!file.type.match(/^image\/(png|jpeg|webp)$/)) {
+      setStatus('Use a PNG, JPG, JPEG, or WebP image.');
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    loadImageFromSource(url, file.name).finally(() => URL.revokeObjectURL(url));
+  }
+
+  function sampleImageDataUrl(): string {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 880;
+    canvas.height = 560;
+
+    if (!ctx) {
+      return '';
+    }
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 132px Arial, sans-serif';
+    ctx.fillText('RC', 150, 310);
+    ctx.fillStyle = '#13b981';
+    ctx.fillRect(150, 350, 330, 34);
+    ctx.fillStyle = '#2563eb';
+    ctx.beginPath();
+    ctx.arc(590, 260, 118, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.arc(642, 220, 42, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 42px Arial, sans-serif';
+    ctx.fillText('sample', 520, 382);
+
+    return canvas.toDataURL('image/png');
+  }
+
+  function sampleColorFromCanvas(event: MouseEvent): void {
+    if (!originalImageData || !previewCanvas || !targetHex || !targetColor) {
+      return;
+    }
+
+    const rect = previewCanvas.getBoundingClientRect();
+    const x = Math.floor(((event.clientX - rect.left) / rect.width) * previewCanvas.width);
+    const y = Math.floor(((event.clientY - rect.top) / rect.height) * previewCanvas.height);
+
+    if (x < 0 || y < 0 || x >= previewCanvas.width || y >= previewCanvas.height) {
+      return;
+    }
+
+    const index = (y * previewCanvas.width + x) * 4;
+    const color = {
+      r: originalImageData.data[index],
+      g: originalImageData.data[index + 1],
+      b: originalImageData.data[index + 2]
+    };
+    const hex = rgbToHex(color);
+    targetHex.value = hex;
+    targetColor.value = hex;
+    scheduleProcess();
+  }
+
+  function resetImage(): void {
+    if (!originalImageData || !context) {
+      return;
+    }
+
+    processedImageData = originalImageData;
+    context.putImageData(originalImageData, 0, 0);
+    setStatus('Reset to the original image.');
+  }
+
+  function downloadPng(): void {
+    if (!processedImageData || !previewCanvas) {
+      return;
+    }
+
+    const exportCanvas = document.createElement('canvas');
+    const exportContext = exportCanvas.getContext('2d');
+
+    if (!exportContext) {
+      setStatus('Unable to export this image.');
+      return;
+    }
+
+    exportCanvas.width = processedImageData.width;
+    exportCanvas.height = processedImageData.height;
+    exportContext.putImageData(processedImageData, 0, 0);
+    exportCanvas.toBlob((blob) => {
+      if (!blob) {
+        setStatus('Unable to export this image.');
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${sourceName}-transparent.png`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  }
+
+  fileInput?.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+
+    if (file) {
+      loadFile(file);
+    }
+  });
+
+  sampleButton?.addEventListener('click', () => {
+    const dataUrl = sampleImageDataUrl();
+
+    if (dataUrl) {
+      loadImageFromSource(dataUrl, 'sample-white-background.png');
+    }
+  });
+
+  dropZone?.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    dropZone.setAttribute('data-dragging', 'true');
+  });
+
+  dropZone?.addEventListener('dragleave', () => {
+    dropZone.removeAttribute('data-dragging');
+  });
+
+  dropZone?.addEventListener('drop', (event) => {
+    event.preventDefault();
+    dropZone.removeAttribute('data-dragging');
+    const file = event.dataTransfer?.files[0];
+
+    if (file) {
+      loadFile(file);
+    }
+  });
+
+  previewCanvas?.addEventListener('click', sampleColorFromCanvas);
+
+  targetColor?.addEventListener('input', () => {
+    if (targetHex && targetColor) {
+      targetHex.value = targetColor.value;
+      scheduleProcess();
+    }
+  });
+
+  targetHex?.addEventListener('input', () => {
+    if (!targetHex || !targetColor) {
+      return;
+    }
+
+    try {
+      const normalized = rgbToHex(parseHexColor(targetHex.value));
+      targetColor.value = normalized;
+      scheduleProcess();
+    } catch {
+      setStatus('Enter a valid HEX color such as #ffffff.');
+    }
+  });
+
+  presetButtons.forEach((button) => {
+    button.addEventListener('click', () => applyPreset(button));
+  });
+
+  for (const input of [toleranceInput, softnessInput, haloInput]) {
+    input?.addEventListener('input', () => {
+      markPresetAsCustom();
+      scheduleProcess();
+    });
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('[data-bg]').forEach((button) => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll<HTMLButtonElement>('[data-bg]').forEach((item) => {
+        item.setAttribute('aria-pressed', String(item === button));
+      });
+      previewStage?.classList.remove('preview-stage--checker', 'preview-stage--white', 'preview-stage--black');
+      previewStage?.classList.add(`preview-stage--${button.dataset.bg}`);
+      previewStage?.style.removeProperty('--custom-preview-bg');
+    });
+  });
+
+  customBg?.addEventListener('input', () => {
+    previewStage?.classList.remove('preview-stage--checker', 'preview-stage--white', 'preview-stage--black');
+    previewStage?.style.setProperty('--custom-preview-bg', customBg.value);
+    document.querySelectorAll<HTMLButtonElement>('[data-bg]').forEach((item) => {
+      item.setAttribute('aria-pressed', 'false');
+    });
+  });
+
+  resetButton?.addEventListener('click', resetImage);
+  downloadButton?.addEventListener('click', downloadPng);
+  syncRangeOutputs();
+</script>

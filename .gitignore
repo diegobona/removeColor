@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+.edge-profile/
+.env
+.env.*
+dev-server*.log
+qa-*.png
+npm-debug.log*

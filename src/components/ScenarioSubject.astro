@@ -1,0 +1,48 @@
+---
+import type { ExampleScenario } from '../data/exampleScenarios';
+
+type Props = {
+  scenario: ExampleScenario;
+};
+
+const { scenario } = Astro.props;
+const style = `--subject-primary: ${scenario.subject.primary}; --subject-accent: ${scenario.subject.accent};`;
+---
+
+<div class={`scenario-subject scenario-subject--${scenario.subject.kind}`} style={style}>
+  {
+    scenario.subject.kind === 'logo' && (
+      <>
+        <span class="logo-mark">RC</span>
+        <span class="logo-line" />
+      </>
+    )
+  }
+  {
+    scenario.subject.kind === 'product' && (
+      <>
+        <span class="product-body" />
+        <span class="product-shine" />
+        <span class="product-dot" />
+      </>
+    )
+  }
+  {
+    scenario.subject.kind === 'icon' && (
+      <>
+        <span class="icon-ring" />
+        <span class="icon-spark icon-spark--one" />
+        <span class="icon-spark icon-spark--two" />
+      </>
+    )
+  }
+  {
+    scenario.subject.kind === 'signature' && (
+      <>
+        <span class="signature-stroke signature-stroke--one" />
+        <span class="signature-stroke signature-stroke--two" />
+        <span class="signature-stroke signature-stroke--three" />
+      </>
+    )
+  }
+</div>

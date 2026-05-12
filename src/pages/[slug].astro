@@ -1,0 +1,72 @@
+---
+import ColorTool from '../components/ColorTool.astro';
+import ExampleGallery from '../components/ExampleGallery.astro';
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { seoPages } from '../data/seoPages';
+
+export function getStaticPaths() {
+  return seoPages.map((page) => ({
+    params: { slug: page.slug },
+    props: { page }
+  }));
+}
+
+const { page } = Astro.props;
+---
+
+<SiteLayout
+  title={page.title}
+  description={page.description}
+  canonicalPath={`/${page.slug}/`}
+  faq={page.faqs}
+>
+  <main>
+    <section class="hero section">
+      <div class="section__inner hero__grid">
+        <div class="hero__copy">
+          <a class="back-link" href="/">RemoveColor.com</a>
+          <p class="eyebrow">Browser-based image color remover</p>
+          <h1>{page.h1}</h1>
+          <p class="hero__intro">{page.intro}</p>
+          <div class="hero__badges" aria-label="Key benefits">
+            <span>Pick a color</span>
+            <span>Clean edges</span>
+            <span>Export PNG</span>
+          </div>
+        </div>
+        <ColorTool />
+      </div>
+    </section>
+
+    <ExampleGallery />
+
+    <section class="section section--muted">
+      <div class="section__inner two-column">
+        <div>
+          <p class="eyebrow">Best fit</p>
+          <h2>{page.focus}</h2>
+          <p>
+            The tool works by sampling a target color from your image and turning matching pixels transparent.
+            Use the sliders to keep useful image detail while cleaning the background or color matte.
+          </p>
+        </div>
+        <div class="example-grid">
+          {page.examples.map((example) => <span>{example}</span>)}
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section__inner faq-list">
+        <p class="eyebrow">FAQ</p>
+        <h2>{page.h1} questions</h2>
+        {page.faqs.map((item) => (
+          <details>
+            <summary>{item.question}</summary>
+            <p>{item.answer}</p>
+          </details>
+        ))}
+      </div>
+    </section>
+  </main>
+</SiteLayout>
