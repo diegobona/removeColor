@@ -1,5 +1,6 @@
 ---
 import ColorTool from '../components/ColorTool.astro';
+import CompactExampleStrip from '../components/CompactExampleStrip.astro';
 import ExampleGallery from '../components/ExampleGallery.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
 import { homePage, seoPages } from '../data/seoPages';
@@ -19,24 +20,12 @@ import { homePage, seoPages } from '../data/seoPages';
             <span>No signup</span>
           </div>
         </div>
+        <CompactExampleStrip />
         <ColorTool />
       </div>
     </section>
 
     <ExampleGallery />
-
-    <section class="section section--muted">
-      <div class="section__inner two-column">
-        <div>
-          <p class="eyebrow">When to use it</p>
-          <h2>Precise color removal for simple image cleanup</h2>
-          <p>{homePage.focus}</p>
-        </div>
-        <div class="example-grid">
-          {homePage.examples.map((example) => <span>{example}</span>)}
-        </div>
-      </div>
-    </section>
 
     <section class="section">
       <div class="section__inner">

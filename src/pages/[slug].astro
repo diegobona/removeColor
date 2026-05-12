@@ -1,5 +1,6 @@
 ---
 import ColorTool from '../components/ColorTool.astro';
+import CompactExampleStrip from '../components/CompactExampleStrip.astro';
 import ExampleGallery from '../components/ExampleGallery.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
 import { seoPages } from '../data/seoPages';
@@ -34,27 +35,12 @@ const { page } = Astro.props;
             <span>Export PNG</span>
           </div>
         </div>
+        <CompactExampleStrip />
         <ColorTool />
       </div>
     </section>
 
     <ExampleGallery />
-
-    <section class="section section--muted">
-      <div class="section__inner two-column">
-        <div>
-          <p class="eyebrow">Best fit</p>
-          <h2>{page.focus}</h2>
-          <p>
-            The tool works by sampling a target color from your image and turning matching pixels transparent.
-            Use the sliders to keep useful image detail while cleaning the background or color matte.
-          </p>
-        </div>
-        <div class="example-grid">
-          {page.examples.map((example) => <span>{example}</span>)}
-        </div>
-      </div>
-    </section>
 
     <section class="section">
       <div class="section__inner faq-list">

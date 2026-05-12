@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exampleScenarios } from './exampleScenarios';
+import { compactExampleScenarios, detailExampleScenarios, exampleScenarios } from './exampleScenarios';
 
 describe('exampleScenarios', () => {
   it('contains multiple before and after removal scenarios', () => {
@@ -12,5 +12,21 @@ describe('exampleScenarios', () => {
       expect(scenario.after.background).toBe('transparent');
       expect(scenario.subject.kind).toBeTruthy();
     }
+  });
+
+  it('selects four compact scenarios for the hero strip', () => {
+    expect(compactExampleScenarios).toHaveLength(4);
+    expect(compactExampleScenarios.map((scenario) => scenario.id)).toEqual([
+      'white-logo',
+      'green-screen',
+      'black-icon',
+      'signature-scan'
+    ]);
+  });
+
+  it('keeps detail examples from duplicating compact strip scenarios', () => {
+    const compactIds = new Set(compactExampleScenarios.map((scenario) => scenario.id));
+
+    expect(detailExampleScenarios.some((scenario) => compactIds.has(scenario.id))).toBe(false);
   });
 });

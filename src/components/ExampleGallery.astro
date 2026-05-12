@@ -1,44 +1,43 @@
 ---
-import { exampleScenarios } from '../data/exampleScenarios';
+import { detailExampleScenarios } from '../data/exampleScenarios';
 import ScenarioSubject from './ScenarioSubject.astro';
 ---
 
-<section class="section examples-section" aria-labelledby="examples-heading">
-  <div class="section__inner">
-    <div class="section-heading">
-      <p class="eyebrow">Before and after</p>
-      <h2 id="examples-heading">See what color removal does</h2>
-      <p>
-        Compare common remove-color tasks: white backgrounds, green screen colors, black icon backdrops,
-        and scanned paper color.
-      </p>
-    </div>
+{
+  detailExampleScenarios.length > 0 && (
+    <section class="section examples-section" aria-labelledby="examples-heading">
+      <div class="section__inner">
+        <div class="section-heading">
+          <p class="eyebrow">More examples</p>
+          <h2 id="examples-heading">Common color-removal results</h2>
+          <p>A few more examples of selected colors becoming transparent.</p>
+        </div>
 
-    <div class="comparison-grid">
-      {
-        exampleScenarios.map((scenario) => (
-          <article class="comparison-card">
-            <div class="comparison-card__header">
-              <strong>{scenario.title}</strong>
-              <span>{scenario.removeLabel}</span>
-            </div>
-            <div class="comparison-card__pair">
-              <figure class="mock-image" style={`--mock-bg: ${scenario.before.background};`}>
-                <div class="mock-image__surface mock-image__surface--solid">
-                  <ScenarioSubject scenario={scenario} />
-                </div>
-                <figcaption>{scenario.before.label}</figcaption>
-              </figure>
-              <figure class="mock-image">
-                <div class="mock-image__surface mock-image__surface--transparent">
-                  <ScenarioSubject scenario={scenario} />
-                </div>
-                <figcaption>{scenario.after.label}</figcaption>
-              </figure>
-            </div>
-          </article>
-        ))
-      }
-    </div>
-  </div>
-</section>
+        <div class="comparison-grid comparison-grid--simple">
+          {detailExampleScenarios.map((scenario) => (
+            <article class="comparison-card">
+              <div class="comparison-card__header">
+                <strong>{scenario.title}</strong>
+                <span>{scenario.removeLabel}</span>
+              </div>
+              <div class="comparison-card__pair">
+                <figure class="mock-image" style={`--mock-bg: ${scenario.before.background};`}>
+                  <div class="mock-image__surface mock-image__surface--solid">
+                    <ScenarioSubject scenario={scenario} />
+                  </div>
+                  <figcaption>{scenario.before.label}</figcaption>
+                </figure>
+                <figure class="mock-image">
+                  <div class="mock-image__surface mock-image__surface--transparent">
+                    <ScenarioSubject scenario={scenario} />
+                  </div>
+                  <figcaption>{scenario.after.label}</figcaption>
+                </figure>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}

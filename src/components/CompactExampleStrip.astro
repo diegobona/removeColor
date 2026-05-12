@@ -1,0 +1,50 @@
+---
+import { compactExampleScenarios } from '../data/exampleScenarios';
+import ScenarioSubject from './ScenarioSubject.astro';
+
+const exampleSets = [
+  { key: 'primary', hidden: false },
+  { key: 'loop-copy', hidden: true }
+];
+---
+
+<section class="compact-examples" aria-label="Quick before and after examples">
+  <div class="compact-examples__intro">
+    <strong>See it before you upload</strong>
+    <span>Selected colors become transparent PNG areas.</span>
+  </div>
+  <div class="compact-examples__viewport">
+    <div class="compact-examples__track">
+      {
+        exampleSets.map((set) => (
+          <div
+            class="compact-examples__set"
+            data-set={set.key}
+            aria-hidden={set.hidden ? 'true' : undefined}
+          >
+            {compactExampleScenarios.map((scenario) => (
+              <article class="compact-example" data-scenario={scenario.id}>
+                <div class="compact-example__meta">
+                  <strong>{scenario.title}</strong>
+                  <span>{scenario.removeLabel}</span>
+                </div>
+                <div class="compact-example__pair">
+                  <div
+                    class="compact-example__image compact-example__image--solid"
+                    style={`--mock-bg: ${scenario.before.background};`}
+                  >
+                    <ScenarioSubject scenario={scenario} />
+                  </div>
+                  <div class="compact-example__arrow" aria-hidden="true">-&gt;</div>
+                  <div class="compact-example__image compact-example__image--transparent">
+                    <ScenarioSubject scenario={scenario} />
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>

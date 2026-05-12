@@ -91,3 +91,13 @@ export const exampleScenarios: ExampleScenario[] = [
     }
   }
 ];
+
+const compactExampleScenarioIds = ['white-logo', 'green-screen', 'black-icon', 'signature-scan'];
+
+export const compactExampleScenarios = exampleScenarios.filter((scenario) =>
+  compactExampleScenarioIds.includes(scenario.id)
+);
+
+export const detailExampleScenarios = exampleScenarios.filter(
+  (scenario) => !compactExampleScenarioIds.includes(scenario.id)
+);
