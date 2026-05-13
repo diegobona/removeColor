@@ -25,10 +25,23 @@ const { page } = Astro.props;
     <section class="hero section">
       <div class="section__inner hero__grid">
         <div class="hero__copy">
-          <a class="back-link" href="/">RemoveColor.com</a>
+          <a class="brand-lockup brand-lockup--link" href="/" aria-label="RemoveColor home">
+            <span class="brand-mark" aria-hidden="true">
+              <span class="brand-mark__tile brand-mark__tile--blue"></span>
+              <span class="brand-mark__tile brand-mark__tile--teal"></span>
+              <span class="brand-mark__tile brand-mark__tile--clear"></span>
+              <span class="brand-mark__cut"></span>
+            </span>
+            <span>RemoveColor</span>
+          </a>
           <p class="eyebrow">Browser-based image color remover</p>
           <h1>{page.h1}</h1>
           <p class="hero__intro">{page.intro}</p>
+          <div class="hero__proof" aria-label="Color removal workflow">
+            <span><strong>1</strong> Pick color</span>
+            <span><strong>2</strong> Clean edge</span>
+            <span><strong>3</strong> Export transparent PNG</span>
+          </div>
           <div class="hero__badges" aria-label="Key benefits">
             <span>Pick a color</span>
             <span>Clean edges</span>

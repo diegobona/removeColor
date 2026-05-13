@@ -23,8 +23,24 @@ const defaultPreset = getDefaultCleanupPreset();
     <div class="preview-stage preview-stage--checker" id="previewStage">
       <canvas id="previewCanvas" width="960" height="540"></canvas>
       <div class="preview-empty" id="previewEmpty">
+        <div class="preview-empty__visual" aria-hidden="true">
+          <span class="preview-empty__card preview-empty__card--before">
+            <span class="preview-empty__shape preview-empty__shape--mark">RC</span>
+            <span class="preview-empty__bar"></span>
+          </span>
+          <span class="preview-empty__arrow">-&gt;</span>
+          <span class="preview-empty__card preview-empty__card--after">
+            <span class="preview-empty__shape preview-empty__shape--mark">RC</span>
+            <span class="preview-empty__bar"></span>
+          </span>
+        </div>
         <strong>Preview</strong>
         <span>Your transparent result appears here.</span>
+        <div class="preview-empty__chips" aria-hidden="true">
+          <span class="preview-empty__chip preview-empty__chip--white"></span>
+          <span class="preview-empty__chip preview-empty__chip--green"></span>
+          <span class="preview-empty__chip preview-empty__chip--black"></span>
+        </div>
       </div>
     </div>
 
