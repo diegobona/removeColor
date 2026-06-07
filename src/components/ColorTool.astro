@@ -133,6 +133,7 @@ const defaultPreset = getDefaultCleanupPreset();
 
 <script>
   import { parseHexColor, removeColorFromPixels, rgbToHex } from '../lib/colorRemoval';
+  import { getContainedPreviewSize } from '../lib/previewSizing';
 
   const fileInput = document.querySelector<HTMLInputElement>('#fileInput');
   const sampleButton = document.querySelector<HTMLButtonElement>('#sampleButton');
@@ -161,6 +162,25 @@ const defaultPreset = getDefaultCleanupPreset();
   let sourceName = 'removecolor-image';
   let pendingFrame = 0;
   let pendingTimer = 0;
+
+  function updatePreviewCanvasSize(): void {
+    if (!previewStage || !previewCanvas || !originalImageData) {
+      return;
+    }
+
+    const bounds = previewStage.getBoundingClientRect();
+    const size = getContainedPreviewSize(
+      { width: originalImageData.width, height: originalImageData.height },
+      { width: bounds.width, height: bounds.height }
+    );
+
+    if (size.width === 0 || size.height === 0) {
+      return;
+    }
+
+    previewCanvas.style.width = `${size.width}px`;
+    previewCanvas.style.height = `${size.height}px`;
+  }
 
   function setStatus(message: string): void {
     if (statusText) {
@@ -288,6 +308,7 @@ const defaultPreset = getDefaultCleanupPreset();
     originalImageData = context.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
     processedImageData = originalImageData;
     setActiveState(true);
+    updatePreviewCanvasSize();
     scheduleProcess();
   }
 
@@ -489,5 +510,12 @@ const defaultPreset = getDefaultCleanupPreset();
 
   resetButton?.addEventListener('click', resetImage);
   downloadButton?.addEventListener('click', downloadPng);
+
+  if (previewStage && 'ResizeObserver' in window) {
+    const previewResizeObserver = new ResizeObserver(() => updatePreviewCanvasSize());
+    previewResizeObserver.observe(previewStage);
+  }
+
+  window.addEventListener('resize', updatePreviewCanvasSize);
   syncRangeOutputs();
 </script>

@@ -617,11 +617,8 @@ p {
 
 #previewCanvas {
   display: block;
-  width: 100%;
   max-width: 100%;
-  height: auto;
-  max-height: 68vh;
-  object-fit: contain;
+  max-height: 100%;
   cursor: crosshair;
 }
 
