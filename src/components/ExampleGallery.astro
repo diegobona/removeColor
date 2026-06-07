@@ -13,27 +13,39 @@ import ScenarioSubject from './ScenarioSubject.astro';
           <p>A few more examples of selected colors becoming transparent.</p>
         </div>
 
-        <div class="comparison-grid comparison-grid--simple">
+        <div class="comparison-grid comparison-grid--real">
           {detailExampleScenarios.map((scenario) => (
             <article class="comparison-card">
               <div class="comparison-card__header">
                 <strong>{scenario.title}</strong>
                 <span>{scenario.removeLabel}</span>
               </div>
-              <div class="comparison-card__pair">
-                <figure class="mock-image" style={`--mock-bg: ${scenario.before.background};`}>
-                  <div class="mock-image__surface mock-image__surface--solid">
-                    <ScenarioSubject scenario={scenario} />
+              {
+                scenario.media ? (
+                  <figure class="real-example">
+                    <img src={scenario.media.beforeSrc} alt={scenario.media.alt} loading="lazy" />
+                    <figcaption>
+                      <span>{scenario.before.label}</span>
+                      {scenario.targetColor && <code>{scenario.targetColor}</code>}
+                    </figcaption>
+                  </figure>
+                ) : (
+                  <div class="comparison-card__pair">
+                    <figure class="mock-image" style={`--mock-bg: ${scenario.before.background};`}>
+                      <div class="mock-image__surface mock-image__surface--solid">
+                        <ScenarioSubject scenario={scenario} />
+                      </div>
+                      <figcaption>{scenario.before.label}</figcaption>
+                    </figure>
+                    <figure class="mock-image">
+                      <div class="mock-image__surface mock-image__surface--transparent">
+                        <ScenarioSubject scenario={scenario} />
+                      </div>
+                      <figcaption>{scenario.after.label}</figcaption>
+                    </figure>
                   </div>
-                  <figcaption>{scenario.before.label}</figcaption>
-                </figure>
-                <figure class="mock-image">
-                  <div class="mock-image__surface mock-image__surface--transparent">
-                    <ScenarioSubject scenario={scenario} />
-                  </div>
-                  <figcaption>{scenario.after.label}</figcaption>
-                </figure>
-              </div>
+                )
+              }
             </article>
           ))}
         </div>

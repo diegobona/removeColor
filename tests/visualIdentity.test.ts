@@ -14,5 +14,15 @@ describe('visual identity surfaces', () => {
 
     expect(colorTool).toContain('preview-empty__visual');
     expect(colorTool).toContain('preview-empty__chip');
+    expect(colorTool).toContain('removecolor:load-example');
+  });
+
+  it('uses Try buttons to load compact example images', () => {
+    const compactExampleStrip = readFileSync('src/components/CompactExampleStrip.astro', 'utf8');
+
+    expect(compactExampleStrip).toContain('Try');
+    expect(compactExampleStrip).toContain('compact-example__cta');
+    expect(compactExampleStrip).toContain('data-example-trigger');
+    expect(compactExampleStrip).toContain('removecolor:load-example');
   });
 });

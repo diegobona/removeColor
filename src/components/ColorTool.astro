@@ -135,6 +135,11 @@ const defaultPreset = getDefaultCleanupPreset();
   import { parseHexColor, removeColorFromPixels, rgbToHex } from '../lib/colorRemoval';
   import { getContainedPreviewSize } from '../lib/previewSizing';
 
+  type ExampleLoadDetail = {
+    source: string;
+    name: string;
+  };
+
   const fileInput = document.querySelector<HTMLInputElement>('#fileInput');
   const sampleButton = document.querySelector<HTMLButtonElement>('#sampleButton');
   const dropZone = document.querySelector<HTMLElement>('#dropZone');
@@ -510,6 +515,18 @@ const defaultPreset = getDefaultCleanupPreset();
 
   resetButton?.addEventListener('click', resetImage);
   downloadButton?.addEventListener('click', downloadPng);
+
+  window.addEventListener('removecolor:load-example', (event) => {
+    const detail = (event as CustomEvent<ExampleLoadDetail>).detail;
+
+    if (!detail?.source || !detail?.name) {
+      return;
+    }
+
+    setStatus('Loading example image...');
+    loadImageFromSource(detail.source, detail.name);
+    dropZone?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 
   if (previewStage && 'ResizeObserver' in window) {
     const previewResizeObserver = new ResizeObserver(() => updatePreviewCanvasSize());

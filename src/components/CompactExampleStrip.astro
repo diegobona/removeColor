@@ -1,6 +1,5 @@
 ---
 import { compactExampleScenarios } from '../data/exampleScenarios';
-import ScenarioSubject from './ScenarioSubject.astro';
 
 const exampleSets = [
   { key: 'primary', hidden: false },
@@ -26,18 +25,44 @@ const exampleSets = [
               <article class="compact-example" data-scenario={scenario.id}>
                 <div class="compact-example__meta">
                   <strong>{scenario.title}</strong>
-                  <span>{scenario.removeLabel}</span>
+                  <button
+                    class="compact-example__cta"
+                    type="button"
+                    data-example-trigger
+                    data-example-src={scenario.media?.beforeSrc}
+                    data-example-name={scenario.media?.beforeSrc?.split('/').pop()}
+                  >
+                    Try
+                  </button>
                 </div>
                 <div class="compact-example__pair">
                   <div
                     class="compact-example__image compact-example__image--solid"
                     style={`--mock-bg: ${scenario.before.background};`}
                   >
-                    <ScenarioSubject scenario={scenario} />
+                    {
+                      scenario.media ? (
+                        <img
+                          src={scenario.media.beforeSrc}
+                          alt={scenario.media.alt}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : null
+                    }
                   </div>
                   <div class="compact-example__arrow" aria-hidden="true">-&gt;</div>
                   <div class="compact-example__image compact-example__image--transparent">
-                    <ScenarioSubject scenario={scenario} />
+                    {
+                      scenario.media ? (
+                        <img
+                          src={scenario.media.expectedAfterSrc}
+                          alt={`${scenario.media.alt} after color removal`}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : null
+                    }
                   </div>
                 </div>
               </article>
@@ -48,3 +73,27 @@ const exampleSets = [
     </div>
   </div>
 </section>
+
+<script>
+  type ExampleLoadDetail = {
+    source: string;
+    name: string;
+  };
+
+  document.querySelectorAll<HTMLButtonElement>('[data-example-trigger]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const source = button.dataset.exampleSrc;
+      const name = button.dataset.exampleName;
+
+      if (!source || !name) {
+        return;
+      }
+
+      window.dispatchEvent(
+        new CustomEvent<ExampleLoadDetail>('removecolor:load-example', {
+          detail: { source, name }
+        })
+      );
+    });
+  });
+</script>
