@@ -5,42 +5,48 @@ const defaultPreset = getDefaultCleanupPreset();
 ---
 
 <section class="tool" aria-label="Remove color from image tool">
-  <div class="tool__upload" id="dropZone">
-    <div>
-      <p class="tool__label">Upload image</p>
-      <p class="tool__hint">PNG, JPG, JPEG, or WebP. Processing stays in your browser.</p>
-    </div>
-    <div class="tool__actions">
-      <label class="button button--primary">
-        Choose image
-        <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" />
-      </label>
-      <button class="button button--ghost" id="sampleButton" type="button">Try sample</button>
-    </div>
-  </div>
+  <input id="fileInput" class="tool__file-input" type="file" accept="image/png,image/jpeg,image/webp" />
 
   <div class="tool__workspace" id="workspace" data-active="false">
-    <div class="preview-stage preview-stage--checker" id="previewStage">
-      <canvas id="previewCanvas" width="960" height="540"></canvas>
-      <div class="preview-empty" id="previewEmpty">
-        <div class="preview-empty__visual" aria-hidden="true">
-          <span class="preview-empty__card preview-empty__card--before">
-            <span class="preview-empty__shape preview-empty__shape--mark">RC</span>
-            <span class="preview-empty__bar"></span>
-          </span>
-          <span class="preview-empty__arrow">-&gt;</span>
-          <span class="preview-empty__card preview-empty__card--after">
-            <span class="preview-empty__shape preview-empty__shape--mark">RC</span>
-            <span class="preview-empty__bar"></span>
-          </span>
-        </div>
-        <strong>Preview</strong>
-        <span>Your transparent result appears here.</span>
-        <div class="preview-empty__chips" aria-hidden="true">
-          <span class="preview-empty__chip preview-empty__chip--white"></span>
-          <span class="preview-empty__chip preview-empty__chip--green"></span>
-          <span class="preview-empty__chip preview-empty__chip--black"></span>
-        </div>
+    <div class="compare-stage compare-stage--checker" id="compareStage">
+      <div class="compare-grid">
+        <section class="compare-panel">
+          <div class="compare-panel__header">
+            <strong>Input image</strong>
+            <span class="compare-panel__hint">Click on a color</span>
+          </div>
+          <div class="compare-panel__surface" id="beforeSurface">
+            <div class="before-empty" id="beforeEmpty">
+              <label class="before-empty__button" for="fileInput">
+                <span class="before-empty__plus" aria-hidden="true">+</span>
+                <span>Click to load an image</span>
+              </label>
+              <div class="before-empty__notes">
+                <span>Or drop an image here</span>
+                <span>Or paste it here (Ctrl+V)</span>
+                <span>Or load from examples above</span>
+              </div>
+            </div>
+            <canvas id="beforeCanvas" width="960" height="540"></canvas>
+          </div>
+          <div class="compare-panel__actions compare-panel__actions--placeholder" aria-hidden="true">
+            <button class="button button--primary compare-panel__download" type="button" tabindex="-1">Download PNG</button>
+          </div>
+        </section>
+
+        <section class="compare-panel">
+          <div class="compare-panel__header">
+            <strong>Output image</strong>
+          </div>
+          <div class="compare-panel__surface" id="afterSurface">
+            <canvas id="afterCanvas" width="960" height="540"></canvas>
+          </div>
+          <div class="compare-panel__actions">
+            <button class="button button--primary compare-panel__download" id="downloadButton" type="button" disabled>
+              Download PNG
+            </button>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -124,7 +130,6 @@ const defaultPreset = getDefaultCleanupPreset();
         <p id="statusText" role="status">Choose an image to start.</p>
         <div class="tool__footer-actions">
           <button class="button button--ghost" id="resetButton" type="button" disabled>Reset</button>
-          <button class="button button--primary" id="downloadButton" type="button" disabled>Download PNG</button>
         </div>
       </div>
     </div>
@@ -141,12 +146,13 @@ const defaultPreset = getDefaultCleanupPreset();
   };
 
   const fileInput = document.querySelector<HTMLInputElement>('#fileInput');
-  const sampleButton = document.querySelector<HTMLButtonElement>('#sampleButton');
-  const dropZone = document.querySelector<HTMLElement>('#dropZone');
   const workspace = document.querySelector<HTMLElement>('#workspace');
-  const previewStage = document.querySelector<HTMLElement>('#previewStage');
-  const previewCanvas = document.querySelector<HTMLCanvasElement>('#previewCanvas');
-  const previewEmpty = document.querySelector<HTMLElement>('#previewEmpty');
+  const compareStage = document.querySelector<HTMLElement>('#compareStage');
+  const beforeSurface = document.querySelector<HTMLElement>('#beforeSurface');
+  const afterSurface = document.querySelector<HTMLElement>('#afterSurface');
+  const beforeCanvas = document.querySelector<HTMLCanvasElement>('#beforeCanvas');
+  const afterCanvas = document.querySelector<HTMLCanvasElement>('#afterCanvas');
+  const beforeEmpty = document.querySelector<HTMLElement>('#beforeEmpty');
   const targetHex = document.querySelector<HTMLInputElement>('#targetHex');
   const targetColor = document.querySelector<HTMLInputElement>('#targetColor');
   const toleranceInput = document.querySelector<HTMLInputElement>('#toleranceInput');
@@ -160,7 +166,8 @@ const defaultPreset = getDefaultCleanupPreset();
   const statusText = document.querySelector<HTMLElement>('#statusText');
   const resetButton = document.querySelector<HTMLButtonElement>('#resetButton');
   const downloadButton = document.querySelector<HTMLButtonElement>('#downloadButton');
-  const context = previewCanvas?.getContext('2d', { willReadFrequently: true });
+  const beforeContext = beforeCanvas?.getContext('2d', { willReadFrequently: true });
+  const afterContext = afterCanvas?.getContext('2d', { willReadFrequently: true });
 
   let originalImageData: ImageData | null = null;
   let processedImageData: ImageData | null = null;
@@ -169,22 +176,38 @@ const defaultPreset = getDefaultCleanupPreset();
   let pendingTimer = 0;
 
   function updatePreviewCanvasSize(): void {
-    if (!previewStage || !previewCanvas || !originalImageData) {
+    if (!beforeSurface || !afterSurface || !beforeCanvas || !afterCanvas || !originalImageData) {
       return;
     }
 
-    const bounds = previewStage.getBoundingClientRect();
-    const size = getContainedPreviewSize(
+    const beforeBounds = beforeSurface.getBoundingClientRect();
+    const afterBounds = afterSurface.getBoundingClientRect();
+    const beforeSize = getContainedPreviewSize(
       { width: originalImageData.width, height: originalImageData.height },
-      { width: bounds.width, height: bounds.height }
+      { width: beforeBounds.width, height: beforeBounds.height }
+    );
+    const afterSize = getContainedPreviewSize(
+      { width: originalImageData.width, height: originalImageData.height },
+      { width: afterBounds.width, height: afterBounds.height }
     );
 
-    if (size.width === 0 || size.height === 0) {
+    if (beforeSize.width === 0 || beforeSize.height === 0 || afterSize.width === 0 || afterSize.height === 0) {
       return;
     }
 
-    previewCanvas.style.width = `${size.width}px`;
-    previewCanvas.style.height = `${size.height}px`;
+    beforeCanvas.style.width = `${beforeSize.width}px`;
+    beforeCanvas.style.height = `${beforeSize.height}px`;
+    afterCanvas.style.width = `${afterSize.width}px`;
+    afterCanvas.style.height = `${afterSize.height}px`;
+  }
+
+  function drawOriginalImage(): void {
+    if (!originalImageData || !beforeContext || !beforeCanvas) {
+      return;
+    }
+
+    beforeContext.clearRect(0, 0, beforeCanvas.width, beforeCanvas.height);
+    beforeContext.putImageData(originalImageData, 0, 0);
   }
 
   function setStatus(message: string): void {
@@ -195,8 +218,8 @@ const defaultPreset = getDefaultCleanupPreset();
 
   function setActiveState(active: boolean): void {
     workspace?.setAttribute('data-active', String(active));
-    if (previewEmpty) {
-      previewEmpty.hidden = active;
+    if (beforeEmpty) {
+      beforeEmpty.hidden = active;
     }
     if (resetButton) {
       resetButton.disabled = !active;
@@ -221,7 +244,7 @@ const defaultPreset = getDefaultCleanupPreset();
   function scheduleProcess(): void {
     syncRangeOutputs();
 
-    if (!originalImageData || !context || !previewCanvas) {
+    if (!originalImageData || !afterContext || !afterCanvas) {
       return;
     }
 
@@ -263,7 +286,7 @@ const defaultPreset = getDefaultCleanupPreset();
   }
 
   function processImage(): void {
-    if (!originalImageData || !context || !targetHex || !toleranceInput || !softnessInput || !haloInput) {
+    if (!originalImageData || !afterContext || !targetHex || !toleranceInput || !softnessInput || !haloInput) {
       return;
     }
 
@@ -279,17 +302,18 @@ const defaultPreset = getDefaultCleanupPreset();
           haloCleanup: Number(haloInput.value)
         }
       );
-      processedImageData = context.createImageData(originalImageData.width, originalImageData.height);
+      processedImageData = afterContext.createImageData(originalImageData.width, originalImageData.height);
       processedImageData.data.set(nextData);
-      context.putImageData(processedImageData, 0, 0);
-      setStatus('Preview updated. Click the image to sample a different color.');
+      afterContext.clearRect(0, 0, afterCanvas?.width ?? 0, afterCanvas?.height ?? 0);
+      afterContext.putImageData(processedImageData, 0, 0);
+    setStatus('Preview updated. Click on a color in the input image.');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Unable to process this image.');
     }
   }
 
   async function loadImageFromSource(source: string, name: string): Promise<void> {
-    if (!context || !previewCanvas) {
+    if (!beforeContext || !afterContext || !beforeCanvas || !afterCanvas) {
       setStatus('Canvas is not available in this browser.');
       return;
     }
@@ -306,12 +330,15 @@ const defaultPreset = getDefaultCleanupPreset();
     }
 
     sourceName = name.replace(/\.[^.]+$/, '') || 'removecolor-image';
-    previewCanvas.width = image.naturalWidth;
-    previewCanvas.height = image.naturalHeight;
-    context.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-    context.drawImage(image, 0, 0);
-    originalImageData = context.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
+    beforeCanvas.width = image.naturalWidth;
+    beforeCanvas.height = image.naturalHeight;
+    afterCanvas.width = image.naturalWidth;
+    afterCanvas.height = image.naturalHeight;
+    beforeContext.clearRect(0, 0, beforeCanvas.width, beforeCanvas.height);
+    beforeContext.drawImage(image, 0, 0);
+    originalImageData = beforeContext.getImageData(0, 0, beforeCanvas.width, beforeCanvas.height);
     processedImageData = originalImageData;
+    drawOriginalImage();
     setActiveState(true);
     updatePreviewCanvasSize();
     scheduleProcess();
@@ -327,52 +354,20 @@ const defaultPreset = getDefaultCleanupPreset();
     loadImageFromSource(url, file.name).finally(() => URL.revokeObjectURL(url));
   }
 
-  function sampleImageDataUrl(): string {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 880;
-    canvas.height = 560;
-
-    if (!ctx) {
-      return '';
-    }
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 132px Arial, sans-serif';
-    ctx.fillText('RC', 150, 310);
-    ctx.fillStyle = '#13b981';
-    ctx.fillRect(150, 350, 330, 34);
-    ctx.fillStyle = '#2563eb';
-    ctx.beginPath();
-    ctx.arc(590, 260, 118, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#f97316';
-    ctx.beginPath();
-    ctx.arc(642, 220, 42, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 42px Arial, sans-serif';
-    ctx.fillText('sample', 520, 382);
-
-    return canvas.toDataURL('image/png');
-  }
-
   function sampleColorFromCanvas(event: MouseEvent): void {
-    if (!originalImageData || !previewCanvas || !targetHex || !targetColor) {
+    if (!originalImageData || !beforeCanvas || !targetHex || !targetColor) {
       return;
     }
 
-    const rect = previewCanvas.getBoundingClientRect();
-    const x = Math.floor(((event.clientX - rect.left) / rect.width) * previewCanvas.width);
-    const y = Math.floor(((event.clientY - rect.top) / rect.height) * previewCanvas.height);
+    const rect = beforeCanvas.getBoundingClientRect();
+    const x = Math.floor(((event.clientX - rect.left) / rect.width) * beforeCanvas.width);
+    const y = Math.floor(((event.clientY - rect.top) / rect.height) * beforeCanvas.height);
 
-    if (x < 0 || y < 0 || x >= previewCanvas.width || y >= previewCanvas.height) {
+    if (x < 0 || y < 0 || x >= beforeCanvas.width || y >= beforeCanvas.height) {
       return;
     }
 
-    const index = (y * previewCanvas.width + x) * 4;
+    const index = (y * beforeCanvas.width + x) * 4;
     const color = {
       r: originalImageData.data[index],
       g: originalImageData.data[index + 1],
@@ -385,17 +380,18 @@ const defaultPreset = getDefaultCleanupPreset();
   }
 
   function resetImage(): void {
-    if (!originalImageData || !context) {
+    if (!originalImageData || !afterContext) {
       return;
     }
 
     processedImageData = originalImageData;
-    context.putImageData(originalImageData, 0, 0);
+    drawOriginalImage();
+    afterContext.putImageData(originalImageData, 0, 0);
     setStatus('Reset to the original image.');
   }
 
   function downloadPng(): void {
-    if (!processedImageData || !previewCanvas) {
+    if (!processedImageData) {
       return;
     }
 
@@ -433,26 +429,18 @@ const defaultPreset = getDefaultCleanupPreset();
     }
   });
 
-  sampleButton?.addEventListener('click', () => {
-    const dataUrl = sampleImageDataUrl();
-
-    if (dataUrl) {
-      loadImageFromSource(dataUrl, 'sample-white-background.png');
-    }
-  });
-
-  dropZone?.addEventListener('dragover', (event) => {
+  beforeSurface?.addEventListener('dragover', (event) => {
     event.preventDefault();
-    dropZone.setAttribute('data-dragging', 'true');
+    beforeSurface.setAttribute('data-dragging', 'true');
   });
 
-  dropZone?.addEventListener('dragleave', () => {
-    dropZone.removeAttribute('data-dragging');
+  beforeSurface?.addEventListener('dragleave', () => {
+    beforeSurface.removeAttribute('data-dragging');
   });
 
-  dropZone?.addEventListener('drop', (event) => {
+  beforeSurface?.addEventListener('drop', (event) => {
     event.preventDefault();
-    dropZone.removeAttribute('data-dragging');
+    beforeSurface.removeAttribute('data-dragging');
     const file = event.dataTransfer?.files[0];
 
     if (file) {
@@ -460,7 +448,17 @@ const defaultPreset = getDefaultCleanupPreset();
     }
   });
 
-  previewCanvas?.addEventListener('click', sampleColorFromCanvas);
+  window.addEventListener('paste', (event) => {
+    const pastedFile = Array.from(event.clipboardData?.items ?? [])
+      .find((item) => item.type.match(/^image\/(png|jpeg|webp)$/))
+      ?.getAsFile();
+
+    if (pastedFile) {
+      loadFile(pastedFile);
+    }
+  });
+
+  beforeCanvas?.addEventListener('click', sampleColorFromCanvas);
 
   targetColor?.addEventListener('input', () => {
     if (targetHex && targetColor) {
@@ -499,15 +497,15 @@ const defaultPreset = getDefaultCleanupPreset();
       document.querySelectorAll<HTMLButtonElement>('[data-bg]').forEach((item) => {
         item.setAttribute('aria-pressed', String(item === button));
       });
-      previewStage?.classList.remove('preview-stage--checker', 'preview-stage--white', 'preview-stage--black');
-      previewStage?.classList.add(`preview-stage--${button.dataset.bg}`);
-      previewStage?.style.removeProperty('--custom-preview-bg');
+      compareStage?.classList.remove('compare-stage--checker', 'compare-stage--white', 'compare-stage--black');
+      compareStage?.classList.add(`compare-stage--${button.dataset.bg}`);
+      compareStage?.style.removeProperty('--custom-preview-bg');
     });
   });
 
   customBg?.addEventListener('input', () => {
-    previewStage?.classList.remove('preview-stage--checker', 'preview-stage--white', 'preview-stage--black');
-    previewStage?.style.setProperty('--custom-preview-bg', customBg.value);
+    compareStage?.classList.remove('compare-stage--checker', 'compare-stage--white', 'compare-stage--black');
+    compareStage?.style.setProperty('--custom-preview-bg', customBg.value);
     document.querySelectorAll<HTMLButtonElement>('[data-bg]').forEach((item) => {
       item.setAttribute('aria-pressed', 'false');
     });
@@ -525,12 +523,12 @@ const defaultPreset = getDefaultCleanupPreset();
 
     setStatus('Loading example image...');
     loadImageFromSource(detail.source, detail.name);
-    dropZone?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    beforeSurface?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
-  if (previewStage && 'ResizeObserver' in window) {
+  if (compareStage && 'ResizeObserver' in window) {
     const previewResizeObserver = new ResizeObserver(() => updatePreviewCanvasSize());
-    previewResizeObserver.observe(previewStage);
+    previewResizeObserver.observe(compareStage);
   }
 
   window.addEventListener('resize', updatePreviewCanvasSize);

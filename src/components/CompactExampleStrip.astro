@@ -32,13 +32,16 @@ const exampleSets = [
                     data-example-src={scenario.media?.beforeSrc}
                     data-example-name={scenario.media?.beforeSrc?.split('/').pop()}
                   >
-                    Try
+                    Try it
                   </button>
                 </div>
                 <div class="compact-example__pair">
                   <div
                     class="compact-example__image compact-example__image--solid"
                     style={`--mock-bg: ${scenario.before.background};`}
+                    data-example-trigger
+                    data-example-src={scenario.media?.beforeSrc}
+                    data-example-name={scenario.media?.beforeSrc?.split('/').pop()}
                   >
                     {
                       scenario.media ? (
@@ -80,10 +83,10 @@ const exampleSets = [
     name: string;
   };
 
-  document.querySelectorAll<HTMLButtonElement>('[data-example-trigger]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const source = button.dataset.exampleSrc;
-      const name = button.dataset.exampleName;
+  document.querySelectorAll<HTMLElement>('[data-example-trigger]').forEach((trigger) => {
+    trigger.addEventListener('click', () => {
+      const source = trigger.dataset.exampleSrc;
+      const name = trigger.dataset.exampleName;
 
       if (!source || !name) {
         return;
