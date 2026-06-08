@@ -20,11 +20,15 @@ describe('visual identity surfaces', () => {
     expect(colorTool).toContain('Output image');
     expect(colorTool).toContain('compare-panel__hint');
     expect(colorTool).toContain('compare-panel__download');
+    expect(colorTool).toContain('compare-panel__clear');
     expect(colorTool).toContain('before-empty__button');
+    expect(colorTool).toContain('loadImageButton');
+    expect(colorTool).toContain('clearImageButton');
     expect(colorTool).toContain('Or drop an image here');
     expect(colorTool).toContain('Or paste it here (Ctrl+V)');
     expect(colorTool).toContain('removecolor:load-example');
     expect(colorTool).not.toContain('Try sample');
+    expect(colorTool).not.toContain('Choose an image to start.');
   });
 
   it('uses Try buttons to load compact example images', () => {

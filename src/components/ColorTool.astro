@@ -17,10 +17,10 @@ const defaultPreset = getDefaultCleanupPreset();
           </div>
           <div class="compare-panel__surface" id="beforeSurface">
             <div class="before-empty" id="beforeEmpty">
-              <label class="before-empty__button" for="fileInput">
+              <button class="button button--primary compare-panel__download before-empty__button" id="loadImageButton" type="button">
                 <span class="before-empty__plus" aria-hidden="true">+</span>
                 <span>Click to load an image</span>
-              </label>
+              </button>
               <div class="before-empty__notes">
                 <span>Or drop an image here</span>
                 <span>Or paste it here (Ctrl+V)</span>
@@ -29,8 +29,10 @@ const defaultPreset = getDefaultCleanupPreset();
             </div>
             <canvas id="beforeCanvas" width="960" height="540"></canvas>
           </div>
-          <div class="compare-panel__actions compare-panel__actions--placeholder" aria-hidden="true">
-            <button class="button button--primary compare-panel__download" type="button" tabindex="-1">Download PNG</button>
+          <div class="compare-panel__actions compare-panel__actions--start">
+            <button class="button button--ghost compare-panel__clear" id="clearImageButton" type="button" disabled>
+              Clear image
+            </button>
           </div>
         </section>
 
@@ -127,7 +129,7 @@ const defaultPreset = getDefaultCleanupPreset();
       </div>
 
       <div class="tool__footer">
-        <p id="statusText" role="status">Choose an image to start.</p>
+        <p id="statusText" role="status"></p>
         <div class="tool__footer-actions">
           <button class="button button--ghost" id="resetButton" type="button" disabled>Reset</button>
         </div>
@@ -153,6 +155,8 @@ const defaultPreset = getDefaultCleanupPreset();
   const beforeCanvas = document.querySelector<HTMLCanvasElement>('#beforeCanvas');
   const afterCanvas = document.querySelector<HTMLCanvasElement>('#afterCanvas');
   const beforeEmpty = document.querySelector<HTMLElement>('#beforeEmpty');
+  const loadImageButton = document.querySelector<HTMLButtonElement>('#loadImageButton');
+  const clearImageButton = document.querySelector<HTMLButtonElement>('#clearImageButton');
   const targetHex = document.querySelector<HTMLInputElement>('#targetHex');
   const targetColor = document.querySelector<HTMLInputElement>('#targetColor');
   const toleranceInput = document.querySelector<HTMLInputElement>('#toleranceInput');
@@ -166,8 +170,13 @@ const defaultPreset = getDefaultCleanupPreset();
   const statusText = document.querySelector<HTMLElement>('#statusText');
   const resetButton = document.querySelector<HTMLButtonElement>('#resetButton');
   const downloadButton = document.querySelector<HTMLButtonElement>('#downloadButton');
+  const backgroundButtons = document.querySelectorAll<HTMLButtonElement>('[data-bg]');
+  const defaultPresetButton = document.querySelector<HTMLButtonElement>('[data-preset][aria-pressed="true"]');
   const beforeContext = beforeCanvas?.getContext('2d', { willReadFrequently: true });
   const afterContext = afterCanvas?.getContext('2d', { willReadFrequently: true });
+  const defaultTargetHex = targetHex?.value ?? '#ffffff';
+  const defaultTargetColor = targetColor?.value ?? '#ffffff';
+  const defaultCustomBackground = customBg?.value ?? '#33a6ff';
 
   let originalImageData: ImageData | null = null;
   let processedImageData: ImageData | null = null;
@@ -222,10 +231,13 @@ const defaultPreset = getDefaultCleanupPreset();
       beforeEmpty.hidden = active;
     }
     if (resetButton) {
-      resetButton.disabled = !active;
+      resetButton.disabled = false;
     }
     if (downloadButton) {
       downloadButton.disabled = !active;
+    }
+    if (clearImageButton) {
+      clearImageButton.disabled = !active;
     }
   }
 
@@ -379,15 +391,50 @@ const defaultPreset = getDefaultCleanupPreset();
     scheduleProcess();
   }
 
-  function resetImage(): void {
-    if (!originalImageData || !afterContext) {
+  function clearImage(): void {
+    originalImageData = null;
+    processedImageData = null;
+    sourceName = 'removecolor-image';
+
+    if (fileInput) {
+      fileInput.value = '';
+    }
+    if (beforeContext && beforeCanvas) {
+      beforeContext.clearRect(0, 0, beforeCanvas.width, beforeCanvas.height);
+    }
+    if (afterContext && afterCanvas) {
+      afterContext.clearRect(0, 0, afterCanvas.width, afterCanvas.height);
+    }
+    setActiveState(false);
+    setStatus('');
+  }
+
+  function resetControls(): void {
+    if (!targetHex || !targetColor || !customBg) {
       return;
     }
 
-    processedImageData = originalImageData;
-    drawOriginalImage();
-    afterContext.putImageData(originalImageData, 0, 0);
-    setStatus('Reset to the original image.');
+    targetHex.value = defaultTargetHex;
+    targetColor.value = defaultTargetColor;
+    customBg.value = defaultCustomBackground;
+
+    defaultPresetButton?.click();
+    backgroundButtons.forEach((button) => {
+      const isChecker = button.dataset.bg === 'checker';
+      button.setAttribute('aria-pressed', String(isChecker));
+    });
+    compareStage?.style.removeProperty('--custom-preview-bg');
+    compareStage?.classList.remove('compare-stage--white', 'compare-stage--black');
+    compareStage?.classList.add('compare-stage--checker');
+
+    syncRangeOutputs();
+
+    if (originalImageData) {
+      scheduleProcess();
+      setStatus('Default settings restored.');
+    } else {
+      setStatus('');
+    }
   }
 
   function downloadPng(): void {
@@ -427,6 +474,15 @@ const defaultPreset = getDefaultCleanupPreset();
     if (file) {
       loadFile(file);
     }
+  });
+
+  loadImageButton?.addEventListener('click', () => {
+    if (!fileInput) {
+      return;
+    }
+
+    fileInput.value = '';
+    fileInput.click();
   });
 
   beforeSurface?.addEventListener('dragover', (event) => {
@@ -492,9 +548,9 @@ const defaultPreset = getDefaultCleanupPreset();
     });
   }
 
-  document.querySelectorAll<HTMLButtonElement>('[data-bg]').forEach((button) => {
+  backgroundButtons.forEach((button) => {
     button.addEventListener('click', () => {
-      document.querySelectorAll<HTMLButtonElement>('[data-bg]').forEach((item) => {
+      backgroundButtons.forEach((item) => {
         item.setAttribute('aria-pressed', String(item === button));
       });
       compareStage?.classList.remove('compare-stage--checker', 'compare-stage--white', 'compare-stage--black');
@@ -506,12 +562,13 @@ const defaultPreset = getDefaultCleanupPreset();
   customBg?.addEventListener('input', () => {
     compareStage?.classList.remove('compare-stage--checker', 'compare-stage--white', 'compare-stage--black');
     compareStage?.style.setProperty('--custom-preview-bg', customBg.value);
-    document.querySelectorAll<HTMLButtonElement>('[data-bg]').forEach((item) => {
+    backgroundButtons.forEach((item) => {
       item.setAttribute('aria-pressed', 'false');
     });
   });
 
-  resetButton?.addEventListener('click', resetImage);
+  clearImageButton?.addEventListener('click', clearImage);
+  resetButton?.addEventListener('click', resetControls);
   downloadButton?.addEventListener('click', downloadPng);
 
   window.addEventListener('removecolor:load-example', (event) => {
